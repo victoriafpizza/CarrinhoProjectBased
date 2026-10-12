@@ -1,0 +1,19 @@
+test_boundaries (test_dataset.DatasetTests.test_boundaries) ... ok
+test_duplicates (test_dataset.DatasetTests.test_duplicates) ... ok
+test_fixture (test_dataset.DatasetTests.test_fixture) ... ok
+test_gap_breaks_window (test_dataset.DatasetTests.test_gap_breaks_window) ... ok
+test_inadequate_dataset (test_dataset.DatasetTests.test_inadequate_dataset) ... ok
+test_invalid_range (test_dataset.DatasetTests.test_invalid_range) ... ok
+test_missing (test_dataset.DatasetTests.test_missing) ... ok
+test_nan (test_dataset.DatasetTests.test_nan) ... ok
+test_no_cross_class_windows (test_dataset.DatasetTests.test_no_cross_class_windows) ... ok
+test_preserve_output (test_dataset.DatasetTests.test_preserve_output) ... ok
+test_reject_identical_windows_across_splits (test_dataset.DatasetTests.test_reject_identical_windows_across_splits) ... ok
+test_split_and_format (test_dataset.DatasetTests.test_split_and_format) ... ok
+test_timestamp_reset (test_dataset.DatasetTests.test_timestamp_reset) ... ok
+test_wrong_label (test_dataset.DatasetTests.test_wrong_label) ... ok
+
+----------------------------------------------------------------------
+Ran 14 tests in 0.278s
+
+OK

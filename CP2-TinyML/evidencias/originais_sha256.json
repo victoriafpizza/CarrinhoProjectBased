@@ -1,0 +1,14 @@
+{
+  "diagramaDeFuncionamento.png": "b9f6b05acac917bfccb1289730b2ccde038e13282875823261933d4cd0a0cabe",
+  "main.ino": "ee0c826709a62c2fed38dad0077b341ba21f42ab3e406418ff4904e1fb94f523",
+  "readme.md": "fca24a30927b7f6674d855c5b07764577354dd0644511e2dd08fa9402da2919d",
+  "CP2\\capturar_serial.py": "037bbc7fbca40ae1768d9e06de70bf76a5a0b4fa17ee863a5d99e3f08a6e8d5b",
+  "CP2\\coleta_hcsr04.ino": "cc2d3008553ec68c2d9a57358d02ea39bbc98508ce1bc7b25974c1f9fbf94d54",
+  "CP2\\dados_cp2.csv": "57aebd98e405d259d4e75e3d1c0a4e9ab89f213a7d159e39325a14855d984127",
+  "CP2\\readmeCP2.md": "15fce097dc676387dd10332641e49c9c9ee4de055aac93e78e5bd094e2aac040",
+  "CP2\\sensor.py": "509f63071824a5fc696a7bef27e3ac16db5b0f9009bafd2ab18c2852e3bbc313",
+  "img\\Mídia (1).jpeg": "44c1a49c48685fdfcff3e8e0bd2f09a17b94458b5ab6945a2b24130d32254215",
+  "img\\Mídia (2).jpeg": "a5c43d2569ae0e829c64e8c08b23ff02a49960262a1c0930f2ddc8895c2779c2",
+  "img\\Mídia (3).jpeg": "2a38c75475ad68efa624fb87ccd4542d6d12eda25a139dced053b8003c48296f",
+  "img\\Mídia.jpeg": "a7ec84eae9a2f7534629c34d22b0b572cd27e50afe2ac9be6d1680c6ffd3c64d"
+}
