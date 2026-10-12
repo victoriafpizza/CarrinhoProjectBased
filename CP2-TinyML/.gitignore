@@ -1,0 +1,4 @@
+**/__pycache__/
+*.pyc
+software/carrinho_tinyml/config_local.h
+coleta/config_coleta.h
