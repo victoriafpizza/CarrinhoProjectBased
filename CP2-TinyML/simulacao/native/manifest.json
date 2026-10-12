@@ -1,0 +1,9 @@
+{
+  "compilador": "",
+  "fontes": {
+    "software/carrinho_tinyml/policy.h": "8aabad8bf261f02c4f1d37952910483f4889ef153f519634f1b74dad4348bdba",
+    "simulacao/policy_bridge.cpp": "245a3c7264eaec6202f5436a7f8d96637d97bc9a56e44151deb38ce8f0d3e219"
+  },
+  "biblioteca": "policy.dll",
+  "sha256": "eceafc1ab9807e6dc3e3152c41ac004ee8d676ebb4ec9801c6de166305f5a892"
+}

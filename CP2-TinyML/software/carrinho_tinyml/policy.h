@@ -1,5 +1,6 @@
 #pragma once
-#include <stdint.h>
+using CP2Time = unsigned int;
+static_assert(sizeof(CP2Time)==4,"CP2 exige relógio de 32 bits");
 enum class Proximity { Unknown, Livre, Atencao, Perigo };
 struct Drive { int left; int right; };
 inline Drive gate(int left,int right,Proximity c,bool healthy,bool reverseAllowed,int forwardSign) {
@@ -12,4 +13,4 @@ inline Drive gate(int left,int right,Proximity c,bool healthy,bool reverseAllowe
     if(c==Proximity::Atencao && (left*forwardSign>0 || right*forwardSign>0))return {left/2,right/2};
     return {left,right};
 }
-inline bool fresh(uint32_t now,uint32_t last,uint32_t timeout){return uint32_t(now-last)<=timeout;}
+inline bool fresh(CP2Time now,CP2Time last,CP2Time timeout){return CP2Time(now-last)<=timeout;}

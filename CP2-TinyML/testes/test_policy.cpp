@@ -1,6 +1,6 @@
 // Teste do MESMO policy.h usado no firmware. Executar quando houver compilador C++.
 #include "../software/carrinho_tinyml/policy.h"
-#include <cassert>
+#define assert(expression) do { if (!(expression)) return __LINE__; } while(false)
 int main(){
  auto d=gate(200,200,Proximity::Livre,true,false,1);assert(d.left==200&&d.right==200);
  d=gate(200,100,Proximity::Atencao,true,false,1);assert(d.left==100&&d.right==50);
