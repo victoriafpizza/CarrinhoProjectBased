@@ -1,0 +1,7 @@
+fonte,sessao,tempo_ms,adc,classe
+sintetica,teste-claro,200,3160,ADEQUADA
+sintetica,teste-claro,400,3260,ADEQUADA
+sintetica,teste-medio,200,1780,REDUZIDA
+sintetica,teste-medio,400,2010,REDUZIDA
+sintetica,teste-escuro,200,620,CRITICA
+sintetica,teste-escuro,400,780,CRITICA

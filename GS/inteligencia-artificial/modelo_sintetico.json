@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "algoritmo": "centroide_mais_proximo",
+  "fonte": "sintetica",
+  "adc_max": 4095,
+  "centroides": {
+    "ADEQUADA": 0.7814407814407814,
+    "REDUZIDA": 0.463980463980464,
+    "CRITICA": 0.17094017094017094
+  },
+  "amostras_por_classe": {
+    "ADEQUADA": 5,
+    "REDUZIDA": 5,
+    "CRITICA": 5
+  },
+  "sessoes_treino": [
+    "treino-claro",
+    "treino-escuro",
+    "treino-medio"
+  ]
+}

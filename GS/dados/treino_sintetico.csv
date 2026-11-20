@@ -1,0 +1,16 @@
+fonte,sessao,tempo_ms,adc,classe
+sintetica,treino-claro,200,3170,ADEQUADA
+sintetica,treino-claro,400,3190,ADEQUADA
+sintetica,treino-claro,600,3200,ADEQUADA
+sintetica,treino-claro,800,3210,ADEQUADA
+sintetica,treino-claro,1000,3230,ADEQUADA
+sintetica,treino-medio,200,1810,REDUZIDA
+sintetica,treino-medio,400,1870,REDUZIDA
+sintetica,treino-medio,600,1900,REDUZIDA
+sintetica,treino-medio,800,1930,REDUZIDA
+sintetica,treino-medio,1000,1990,REDUZIDA
+sintetica,treino-escuro,200,660,CRITICA
+sintetica,treino-escuro,400,680,CRITICA
+sintetica,treino-escuro,600,700,CRITICA
+sintetica,treino-escuro,800,720,CRITICA
+sintetica,treino-escuro,1000,740,CRITICA

@@ -1,0 +1,89 @@
+{
+  "modelo": {
+    "schema": 1,
+    "algoritmo": "centroide_mais_proximo",
+    "fonte": "sintetica",
+    "adc_max": 4095,
+    "centroides": {
+      "ADEQUADA": 0.7814407814407814,
+      "REDUZIDA": 0.463980463980464,
+      "CRITICA": 0.17094017094017094
+    },
+    "amostras_por_classe": {
+      "ADEQUADA": 5,
+      "REDUZIDA": 5,
+      "CRITICA": 5
+    },
+    "sessoes_treino": [
+      "treino-claro",
+      "treino-escuro",
+      "treino-medio"
+    ]
+  },
+  "avaliacao": {
+    "fonte": "sintetica",
+    "total": 6,
+    "acertos": 6,
+    "matriz": {
+      "ADEQUADA": {
+        "ADEQUADA": 2,
+        "REDUZIDA": 0,
+        "CRITICA": 0,
+        "INDETERMINADA": 0
+      },
+      "REDUZIDA": {
+        "ADEQUADA": 0,
+        "REDUZIDA": 2,
+        "CRITICA": 0,
+        "INDETERMINADA": 0
+      },
+      "CRITICA": {
+        "ADEQUADA": 0,
+        "REDUZIDA": 0,
+        "CRITICA": 2,
+        "INDETERMINADA": 0
+      }
+    }
+  },
+  "registros": [
+    {
+      "fonte": "sintetica",
+      "tempo_ms": 200,
+      "adc": 3200,
+      "normalizado": 0.7814407814407814,
+      "classe": "ADEQUADA",
+      "resposta": "REGISTRO_NORMAL",
+      "distancia_centroide": 0.0
+    },
+    {
+      "fonte": "sintetica",
+      "tempo_ms": 400,
+      "adc": 1900,
+      "normalizado": 0.463980463980464,
+      "classe": "REDUZIDA",
+      "resposta": "ATENCAO",
+      "distancia_centroide": 0.0
+    },
+    {
+      "fonte": "sintetica",
+      "tempo_ms": 600,
+      "adc": 700,
+      "normalizado": 0.17094017094017094,
+      "classe": "CRITICA",
+      "resposta": "ALERTA",
+      "distancia_centroide": 0.0
+    },
+    {
+      "fonte": "sintetica",
+      "classe": null,
+      "resposta": "FALHA",
+      "motivo": "Registro serial inválido ou saturado"
+    },
+    {
+      "fonte": "sintetica",
+      "classe": null,
+      "resposta": "FALHA",
+      "motivo": "SEM_DADOS_SERIAIS"
+    }
+  ]
+}

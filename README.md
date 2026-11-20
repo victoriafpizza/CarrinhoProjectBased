@@ -1,259 +1,300 @@
-# ROTA LIVRE — Mobilidade Inteligente e Acessibilidade Urbana
+# ROTA LIVRE — Robô Inteligente para Monitoramento Ambiental e Identificação de Objetos
 
-**FIAP · Engenharia de Software · Global Solution 2026.2 — CitizenTech**
+**FIAP · Engenharia de Software — 4ES · Global Solution CitizenTech 2026.2**
 
-**Disciplina** — Project-Based Maker Lab
+**Project-Based Maker Lab · Victoria Franceschini Pizza · RM 550609**
 
-**Aluna** — Victoria Franceschini Pizza · **RM** 550609
+[Visão geral da entrega GS](GS/README.md) · [Checkpoints](CP/README.md) · [Validação](#testes-e-validação) · [Vídeo](#vídeo-demonstrativo)
 
-## Resumo executivo
+## Resumo
 
-O ROTA LIVRE estuda a percepção de obstáculos e a resposta motora em um percurso controlado. A implementação parte de um carrinho 4WD comandado por joystick via Wi-Fi/MQTT. A evolução incorpora ao código a coleta ultrassônica, um pipeline de dados e uma política de redução ou bloqueio do movimento conforme a proximidade. A preparação de dados e a simulação por regras foram verificadas. A inferência embarcada depende de uma biblioteca de modelo treinado, confirmação dos GPIOs e validação no veículo.
+O ROTA LIVRE é um carrinho robótico para observar condições ambientais e objetos em um percurso experimental. Na configuração final informada pela aluna, um controle Xbox comanda a tração do carrinho, um sensor LDR informa a luminosidade ao ESP32 e uma regra de firmware acende um LED e reduz a velocidade em pouca luz. Paralelamente, a câmera de um celular junto ao carrinho transmite vídeo ao computador, onde OpenCV e Ultralytics compõem o fluxo de detecção visual. A IA desta configuração atua sobre os quadros da câmera.
 
-## Problema social e contexto CitizenTech
+O material disponível confirma partes desse percurso em versões distintas. Um pacote histórico usa Bluepad32, entrada analógica e PWM. Um sketch experimental da GS lê um LDR, e os scripts de visão do repositório executam inferência Ultralytics com um YOLOv8n de uma classe. O firmware final com LED e regra de luminosidade e o peso generalista de 80 classes não foram localizados. Por isso, valores do firmware histórico, classes e testes são atribuídos à revisão em que aparecem.
 
-Obstáculos em áreas de circulação prejudicam a previsibilidade e a acessibilidade dos deslocamentos, especialmente para pessoas com mobilidade reduzida. O recorte do Maker Lab é a detecção de proximidade frontal e a resposta motora de um protótipo em pequena escala. O projeto permite investigar como a distância e a latência de reação afetam a circulação em um ambiente representativo.
+## Introdução
 
-## Objetivos gerais e específicos
+A qualidade da iluminação afeta a percepção de desníveis, objetos e pessoas em espaços de circulação. Em um cenário de bancada, variar a luz e observar a resposta do veículo ajuda a estudar como sistemas embarcados podem adaptar seu comportamento. Uma câmera móvel acrescenta informação visual ao contexto, permitindo investigar o que aparece no campo de visão do protótipo. A execução da visão em um computador separa a carga de inferência das tarefas locais de leitura e atuação do ESP32.
 
-**Objetivo geral** — Investigar percepção local e respostas contextualizadas em um protótipo robótico voltado à mobilidade acessível.
+## Problema e justificativa
 
-- Evoluir a base 4WD mantendo a interface de controle remoto.
-- Coletar e preparar janelas temporais de distância para classificação.
-- Verificar a política de redução e parada em situações de aproximação e falha.
-- Preparar a integração embarcada e a medição de resposta física em bancada.
+Em áreas pouco iluminadas, obstáculos podem ser percebidos mais tarde e dificultar o deslocamento. A proposta reúne um sinal local de pouca luz e uma interface visual que pode apoiar inspeções experimentais. O LDR indica variações relativas do circuito. A câmera permite estudar classes visuais, mas a posição de uma caixa na imagem, por si só, não informa se um objeto ocupa a faixa útil de passagem. O projeto não demonstrou redução de acidentes ou operação em vias públicas.
+
+## Objetivo geral
+
+Investigar a combinação de controle manual, resposta à iluminação e detecção de objetos em uma plataforma móvel para monitoramento ambiental.
+
+## Objetivos específicos
+
+- Evoluir a base robótica preservando o histórico do CP1, do CP2 e do CP2-TinyML.
+- Receber comandos de direção do controle Xbox e adaptar a saída dos motores quando o ambiente escurecer.
+- Sinalizar pouca luz por LED e verificar a transição de volta à condição iluminada.
+- Usar o celular como câmera do computador e exibir detecções, rótulos e confiança.
+- Registrar as dependências, a montagem, os casos de falha e as evidências de cada versão.
+
+## Contextualização CitizenTech
+
+A combinação de observação visual e indicação de iluminação é relevante para estudos de mobilidade e segurança em calçadas, corredores e áreas de circulação. Um uso futuro poderia apoiar a triagem de pontos que mereçam inspeção. Essa finalidade exige ensaios representativos, critérios para definir obstruções e evidência das condições observadas. [FIAP — CitizenTech](https://experience.fiap.com.br/global-solution-citizen-tech)
 
 ## Visão geral da solução
 
-O carrinho é a unidade experimental de percepção e atuação do ROTA LIVRE. O operador solicita direção e velocidade. O firmware CP2 foi escrito para autorizar, limitar ou bloquear essa solicitação conforme a leitura do sensor, a classificação local e o estado da comunicação. No computador, a simulação exercita esse fluxo com entradas sintéticas. O código do carrinho não integra API, aplicativo, GPS ou câmera.
+| Parte | Configuração final informada | Evidência auditada |
+|---|---|---|
+| Tração | Controle Xbox → ESP32 → ponte H → motores | Bluepad32 e dois canais de PWM em um ZIP histórico do CP2. O sketch definitivo ainda não está no workspace. |
+| Ambiente | LDR → regra de pouca luz → LED e redução de velocidade | A GS anterior possui sketch de leitura com LDR. O ZIP histórico possui redução por TinyML com entrada analógica. A regra final de LED/PWM não foi localizada. |
+| Visão | Celular junto ao carrinho → Iriun Webcam → OpenCV/Ultralytics no computador | Instalador Iriun identificado. Scripts de captura e detecção localizados. Montagem óptica, execução conjunta e peso generalista ainda sem comprovação. |
 
 ## Arquitetura do sistema
 
-```text
-Joystick X/Y → ADC do ESP32 controle → Wi-Fi / MQTT / JSON
-                                           ↓
-HC-SR04 → TRIG/ECHO → ESP32 carrinho (AP + broker PicoMQTT)
-                           │               │
-                  janela de 10 leituras    mistura diferencial
-                           ↓               ↓
-               Edge Impulse (biblioteca requerida) → policy.h
-                                                         ↓
-                                            PWM + direção → pontes H
-                                                         ↓
-                                               quatro motores DC
+O diagrama representa a configuração final **informada**. Ele indica as responsabilidades dos módulos. A tabela acima identifica a evidência disponível para cada caminho.
+
+```mermaid
+flowchart LR
+    subgraph A["A · Controle e luminosidade"]
+        X["Controle Xbox"] --> E["ESP32"]
+        L["LDR"] --> E
+        E --> R["Regra de luminosidade"]
+        R --> LED["LED"]
+        E --> P["Comando e PWM"]
+        R -->|"Limitação de velocidade"| P
+        P --> H["Ponte H e motores"]
+    end
+    subgraph B["B · Visão no computador"]
+        C["Câmera do celular"] --> I["Iriun Webcam"]
+        I --> D["Dispositivo de vídeo no computador"]
+        D --> O["OpenCV · quadros"]
+        O --> Y["Ultralytics · YOLO"]
+        Y --> V["Caixas, classes e confiança"]
+    end
 ```
 
-O AP local é `ESP32_Rede_MQTT`. O cliente conecta a `192.168.4.1:1883` e publica no tópico `carrinho/joystick` um JSON como `{"x":0,"y":200}`, com inteiros de −255 a 255 e pausa de 50 ms entre publicações. A serial de diagnóstico opera a 115200 baud. [Controle](CP2-TinyML/software/controle_cp2/controle_cp2.ino) · [Carrinho](CP2-TinyML/software/carrinho_tinyml/carrinho_tinyml.ino)
+A integração operacional é observar visualmente o ambiente enquanto o carrinho responde a comandos e à luminosidade. Nos scripts auditados, as saídas visuais são exibidas em uma janela local. Não foi localizada interface que envie classes, coordenadas ou ordens do computador para os motores.
 
-## Componentes de hardware
+## Hardware e componentes
 
-| Componente | Quantidade documentada | Papel e confirmação necessária |
-|---|---:|---|
-| ESP32 | 2 | Uma placa para o joystick e outra para o veículo. Confirmar variante de cada placa. |
-| Joystick e shield | 1 conjunto | Entrada analógica X/Y. Confirmar pinagem e alimentação do módulo. |
-| HC-SR04 | 1 previsto no CP2 | Distância frontal. O relato CP1 já cita ultrassom após o MVP. O CP2 incorpora a leitura ao firmware. Confirmar módulo e eventual adição física posterior ao CP1. |
-| Pontes H | 2 | Comutam os quatro motores. Confirmar modelo, layout de bornes e distribuição de canais entre módulos. |
-| Motores DC e chassi 4WD | 4 motores e 1 chassi | Dois motores por lado. Confirmar polaridade e sentido em bancada. |
-| Pilhas, montagem e carenagem | 12 pilhas, 2 mini protoboards, cabos e carenagem no relato CP1 | Confirmar tipo e arranjo das pilhas, reguladores, tensões, corrente e proteções. |
-
-O relato histórico descreve a evolução do chassi, da organização elétrica e do encaixe e posição dos vidros da carenagem. As fotos e o diagrama são do protótipo anterior. [README CP1 no Git](https://github.com/victoriafpizza/cpCarrinho/blob/08da745ee9625781aa495e9dc2f7d84b97399af5/readme.md) · [Diagrama](diagramaDeFuncionamento.png) · [Fotos](img/)
-
-## Mapeamento de pinos e conexões
-
-DD/DE são dianteiro direito/esquerdo. TD/TE são traseiro direito/esquerdo. Para os motores, a ordem é **PWM, IN1, IN2**.
-
-| Componente | Função | GPIO/Pino | Evidência no código |
-|---|---|---|---|
-| Ponte H → motor DD | PWM e direção | 25, 26, 27 | [CP1](main.ino), `PinoPWMDD` e [CP2](CP2-TinyML/software/carrinho_tinyml/carrinho_tinyml.ino), `drive()` |
-| Ponte H → motor DE | PWM e direção | 13, 12, 14 | CP1, `PinoPWMDE` e CP2, `drive()` |
-| Ponte H → motor TD | PWM e direção | 15, 2, 4 | CP1, `PinoPWMTD` e CP2, `drive()` |
-| Ponte H → motor TE | PWM e direção | 18, 19, 21 | CP1, `PinoPWMTE` e CP2, `drive()` |
-| Joystick X/Y | Entradas ADC do ESP32 controle | 34 e 35 | [Controle CP2](CP2-TinyML/software/controle_cp2/controle_cp2.ino), `pinX/pinY` |
-| HC-SR04 TRIG | Saída digital do ESP32 carrinho | A confirmar. 22 é exemplo histórico. | [Sketch CP2](CP2/coleta_hcsr04.ino), `PIN_TRIG` e [configuração TinyML](CP2-TinyML/coleta/config_coleta.example.h), `CP2_PIN_TRIG` |
-| HC-SR04 ECHO | Entrada digital de duração do pulso | A confirmar. 23 é exemplo histórico. | Sketch CP2, `PIN_ECHO` e configuração TinyML, `CP2_PIN_ECHO` |
-| HC-SR04 VCC/GND | Alimentação e referência | 5 V para HC-SR04 convencional e GND comum, sujeitos à confirmação da montagem | [Orientação de coleta](CP2/readmeCP2.md) |
-| Interface serial | Diagnóstico e coleta no computador | Interface da placa, sem GPIO declarado nos sketches | `Serial.begin(115200)` |
-
-Conectar os GPIOs de comando às entradas lógicas da ponte H e os motores às saídas de potência. Confirmar terras comuns e GPIOs reservados. Em um HC-SR04 convencional, adaptar o ECHO de 5 V à entrada de 3,3 V do ESP32 antes de energizar. O firmware verifica conflito dos GPIOs de TRIG/ECHO com os dos motores em compilação. [Integração](CP2-TinyML/software/carrinho_tinyml/INTEGRACAO.md)
-
-## Tecnologias e bibliotecas
-
-| Ambiente | Recursos | Uso |
+| Componente | Função | Identificação |
 |---|---|---|
-| Arduino IDE / C++ | Arduino-ESP32 3.x, `WiFi.h` e LEDC | AP/estação, GPIO, ADC, PWM. Revisão exata do core e modelo da placa pendentes. |
-| ESP32 veículo | PicoMQTT e ArduinoJson 7.x | Broker local e validação do JSON. |
-| ESP32 controle | PubSubClient e ArduinoJson | Cliente MQTT e serialização do joystick. |
-| ESP32 TinyML | Biblioteca Arduino exportada do Edge Impulse | Metadados, `signal_from_buffer` e `run_classifier`. Exportação ausente. |
-| Coleta no computador | Python 3 e `pyserial==3.5` | Leitura serial e CSV. |
-| Simulação | Python 3.10+, `ctypes`, C++ e Tkinter para interface gráfica | Reuso de `policy.h` com biblioteca nativa. O modo B exige também NumPy e ONNX Runtime. |
+| ESP32 | Controle embarcado, ADC e comando de tração | Família confirmada nas fontes. Variante da placa definitiva a confirmar. |
+| Controle Xbox | Entrada manual de movimento | Informado pela aluna. Modelo e versão de firmware do controle não verificados. |
+| LDR | Sensor de luminosidade relativa | Informado na montagem final e previsto no sketch experimental. Modelo e circuito reais a confirmar. |
+| LED | Indicação local de pouca luz | Informado pela aluna. GPIO, polaridade e corrente de acionamento ainda não documentados. |
+| Ponte H e motores DC | Comutação de sentido e ajuste por PWM | O CP1 documenta quatro motores e duas pontes. O pacote externo do CP2 usa dois canais. Modelo, quantidade e ligação do conjunto final ainda a confirmar. |
+| Celular e computador Windows | Captura de vídeo e inferência | Celular junto ao carrinho conforme o relato. Modelo, fixação e conexão em uso não verificados. |
 
-O repositório usa sketches Arduino e não inclui configuração PlatformIO nem versões exatas das bibliotecas Arduino. [Dependências Python](CP2-TinyML/coleta/requirements.txt) · [Manifesto da DLL Windows](CP2-TinyML/simulacao/native/manifest.json)
+## Pinagem e conexões
 
-## Inteligência artificial e integração com sensores
+A tabela registra **pinos de fontes identificadas**. Use a pinagem da sua revisão ao montar ou gravar o carrinho.
 
-O plano no Edge Impulse especifica uma série de um eixo (`distancia_cm`) a aproximadamente 6,67 Hz, entrada Raw Data, janela e incremento de 1.500 ms e rede densa 16 → 8 → 3, com 50 épocas e taxa de aprendizado 0,001. São parâmetros propostos. Não há link público do projeto, relatório de treinamento, métricas, biblioteca Arduino ou modelo ONNX no repositório. [Configuração](CP2-TinyML/edge-impulse/configuracao.md) · [Treinamento](CP2-TinyML/edge-impulse/treinamento.md) · [Resultados](CP2-TinyML/edge-impulse/resultados.md) · [Modelo](CP2-TinyML/modelo/README.md)
-
-O TRIG envia um pulso de 10 µs. A duração de ECHO é convertida por `distancia_cm = duracao_us * 0.0343 / 2`, com timeout de 30 ms e faixa válida de 2 a 400 cm. Dez leituras em centímetros entram em ordem temporal, uma a cada 150 ms, sem normalização manual. As posições vão de 0 a 1.350 ms dentro da janela nominal de 1.500 ms. Os CSVs brutos em CP2 e CP2-TinyML têm SHA-256 idêntico e são tratados como sintéticos. O manifesto registra 450 leituras, 150 por classe, 36 janelas de treino, seis de teste e 30 leituras descartadas entre os conjuntos. As janelas não atravessam classes nem compartilham leituras. [Preparador](CP2-TinyML/coleta/preparar_dataset.py) · [Manifesto dos dados](CP2-TinyML/dataset/validacao.json)
-
-| Classe | Limite de referência para rotulagem e simulação A | Ação da política com sistema saudável |
-|---|---|---|
-| `LIVRE` | Acima de 60 cm | Repassa a demanda diferencial. |
-| `ATENCAO` | De 25 a 60 cm | Reduz à metade ambos os comandos se algum lado avança. |
-| `PERIGO` | Abaixo de 25 cm | Zera ambos os lados por padrão. Com ré habilitada, permite apenas comandos sem componente de avanço, à metade da potência. |
-
-No firmware, `infer()` para os motores, encapsula a janela e chama `run_classifier` de forma síncrona. A maior saída precisa ser pelo menos 0,80. Valores inválidos e rótulos desconhecidos impedem movimento. A classificação prevista vem do modelo, enquanto a associação entre classe e PWM é escrita em C++. A simulação A aplica os limiares diretamente à última leitura válida e não gera probabilidades. O modo B exige ONNX real, manifesto, hash e metadados compatíveis. Sem modelo ele fica indisponível, sem troca automática para regras. [Política](CP2-TinyML/software/carrinho_tinyml/policy.h) · [Adaptadores](CP2-TinyML/simulacao/inference.py)
-
-
-## Funcionamento detalhado do firmware
-
-1. **Inicialização do carrinho.** `setup()` configura direção, PWM de 5 kHz/8 bits, TRIG/ECHO e serial. Valida o período do modelo, 150 ms com tolerância de 1 ms, inicia o AP e configura a inscrição MQTT. Falha na configuração PWM/AP ou intervalo incompatível bloqueiam movimento.
-2. **Joystick.** `setupWiFi()` associa o controle ao AP e `reconnectMQTT()` tenta recuperar a sessão. O laço mapeia cada ADC de 0 a 4095 para −255 a 255 e zera magnitudes menores que 20. Publica e registra o JSON enviado.
-3. **Recepção e mistura.** O callback valida JSON, tipo inteiro e faixa. `apply()` calcula esquerda = `y+x` e direita = `y-x`, saturadas separadamente. `drive()` replica o comando em cada par de rodas. O sinal escolhe IN1/IN2 e a magnitude define PWM.
-4. **Amostragem.** O `loop()` atende o broker, aplica a política e coleta conforme agenda. Atrasos acima de 15 ms ou leitura inválida chamam `invalidate()`, zeram a saída e exigem nova janela. Ao completar dez amostras, `infer()` atualiza a classe e pode imprimir `TinyML,<classe>,<confiança>,<tempo>_us`.
-5. **Falhas e temporização.** A autorização exige uma estação associada, PWM configurado, comando válido de até 350 ms e predição válida de até 1.800 ms. Payload inválido, perda de comunicação, timeout de sensor, falha de inferência e baixa confiança levam à parada. PWM zero indica uma ordem elétrica. A distância de parada depende da montagem e da inércia.
-
-O sketch isolado de coleta aceita `1/2/3` para escolher classe e pausar, `s` para iniciar e `p/q` para pausar. Envia linhas `tempo_ms,distancia_cm,classe` e mensagens `# INVALID` de diagnóstico. O capturador preserva a classe manual, rejeita registros inconsistentes e grava CSV com metadados por sessão. [Sketch de coleta](CP2-TinyML/coleta/coleta_hcsr04.ino) · [Capturador](CP2-TinyML/coleta/sensor.py)
-
-## Histórico de Desenvolvimento e Versionamento
-
-Foram examinados os **11 commits** alcançáveis. As referências locais `main`, `origin/main` e `origin/HEAD → origin/main` apontavam para `08da745`. Não havia tags. As datas abaixo são de autoria. O `main.ino` ficou idêntico entre o primeiro commit e o HEAD auditado.
-
-| Versão/Commit | Data | Alteração principal | Impacto técnico |
+| Fonte | Entrada analógica | PWM / IN1 / IN2 | LED |
 |---|---|---|---|
-| `1947e28` | 16/09/2026 | Adiciona código e README inicial | Base versionada com controle MQTT, mistura diferencial e dois programas ESP32 em um arquivo. O relato documenta a montagem 4WD. |
-| `042e157` | 16/09/2026 | Adiciona quatro fotografias | Registra o protótipo. |
-| `be1ffe4` | 16/09/2026 | Move fotos para `img/` e adiciona diagrama | Organiza a evidência visual. |
-| `b0f586e` | 17/09/2026 | Atualiza README histórico em linha paralela | Revisão exclusivamente documental. |
-| `3cf3d7d` | 12/10/2026 | Prepara coleta HC-SR04 e ferramentas para CSV | Aquisição isolada, confirmação de GPIOs, gerador sintético e rótulos por sessão. |
-| `5767594` | 12/10/2026 | Versiona dataset sintético e janelas | Separa leitura de treino e teste, com purga e manifesto. |
-| `b1916fe` | 12/10/2026 | Documenta plano do Edge Impulse | Especifica entrada, treinamento, testes e exportação pendentes. |
-| `e5715b7` | 12/10/2026 | Introduz sketches separados e política embarcada | Corrige fechamento do controle extraído, conserva pinagem e mistura, acrescenta coleta, inferência, watchdog e parada. |
-| `e18ec23` | 12/10/2026 | Registra testes, hashes e roteiro físico | Preserva a evidência de dados e identifica os ensaios pendentes. |
-| `905c317` | 12/10/2026 | Adiciona `CP2/`, simulador, adaptadores, DLL e trilha | Reutiliza a política C++ no computador e explicita o relógio de 32 bits. |
-| `08da745` | 12/10/2026 | Integra as linhas por merge | Estado de código auditado, com o CP2 e a documentação histórica reunidos. |
+| [CP1 versionado](main.ino) | Joystick X/Y 34/35 no ESP32 separado do controle | DD 25/26/27, DE 13/12/14, TD 15/2/4, TE 18/19/21 | Sem LED de luminosidade identificado |
+| CP2 CarrinhoLuz, ZIP local, `firmware/carrinho_integrado/carrinho_integrado.ino` | Sensor analógico 39, sem identificação física no pacote | Esquerda 19/18/5, direita 15/4/2 | Sem acionamento de LED no sketch |
+| [Experimento LDR da GS](GS/firmware/ldr_monitor/ldr_monitor.ino) | GPIO34, ADC de 12 bits, atenuação de 11 dB | Sem tração | Sem acionamento de LED |
+| Configuração final Xbox + LDR + LED | GPIO e polaridade do circuito a confirmar | Pinagem, frequência e modelo da ponte a confirmar | GPIO e nível ativo a confirmar |
 
-O relato do CP1 usa `v0.1` a `v1.0` para descrever proposta, chassi, motores, controle, organização eletrônica, ultrassom, alimentação, carenagem, integração e apresentação. O CP2-TinyML usa `v0.1` para a etapa de dados sintéticos e preparação da integração. São rótulos documentais. A comparação de código se baseia nos commits e arquivos preservados. [README histórico do CP1](https://github.com/victoriafpizza/cpCarrinho/blob/08da745ee9625781aa495e9dc2f7d84b97399af5/readme.md) · [README CP2-TinyML](CP2-TinyML/README.md)
+## Sensor LDR e resposta automática
 
-| Firmware | Diferença verificável |
+Um LDR altera sua resistência com a luz incidente. Em um divisor de tensão, essa variação chega ao ADC como um nível analógico. A posição do sensor no circuito determina se o código ADC cresce ou cai quando a luz diminui. Leituras brutas não são iluminância em lux.
+
+O comportamento informado para a entrega é acender o LED e limitar a velocidade em pouca luz, mantendo a direção solicitada pelo operador. Ao voltar à luz adequada, o firmware deve restaurar o estado de saída previsto. O limiar, a comparação usada, a existência de histerese, o nível do LED, a intensidade da redução e a restauração automática dependem do sketch definitivo. Nenhum desses valores foi inferido a partir de revisões antigas.
+
+Essa resposta local é **automação condicional** quando implementada por `if/else`. A IA visual é a inferência YOLO executada no computador.
+
+O sketch experimental `ldr_monitor.ino` inicializa serial a 115200, lê cinco amostras e emite a mediana a cada 200 ms em regime nominal. Gera `LDR,tempo_ms,adc,status` e marca os extremos 0 e 4095 como limite ou inválido. Ele só serve para aquisição. O programa de centroides que consome esses dados pertence ao experimento anterior.
+
+## Controle Xbox e movimentação
+
+O ZIP histórico `CP2_CarrinhoLuz_Entrega_Com_Video.zip` contém um sketch `carrinho_integrado.ino` com `Arduino.h`, `Bluepad32.h` e `CarrinhoLuz_inferencing.h`. Ele configura callbacks Bluetooth com `BP32.setup`. No laço, `BP32.update()` alimenta `processControllers()`, que verifica conexão e novos dados.
+
+| Bloco do sketch histórico | Comportamento confirmado |
 |---|---|
-| [`main.ino`](main.ino) | Referência CP1. Dois pares de `setup()/loop()`, erro `LOW);0` e fechamento final incorreto. Sem rotina de leitura ultrassônica. |
-| [`CP2/coleta_hcsr04.ino`](CP2/coleta_hcsr04.ino) | Coleta separada com pinos exemplificativos. O código troca classe sem pausar, embora o roteiro histórico indique pausa. |
-| [`CP2-TinyML/coleta/coleta_hcsr04.ino`](CP2-TinyML/coleta/coleta_hcsr04.ino) | Exige configuração dos pinos, pausa ao trocar a classe e registra erros de temporização e sensor. |
-| [`controle_cp2.ino`](CP2-TinyML/software/controle_cp2/controle_cp2.ino) | Extrai o programa do controle, corrige o fechamento e mantém pinagem, mensagens e broker esperado. |
-| [`carrinho_tinyml.ino`](CP2-TinyML/software/carrinho_tinyml/carrinho_tinyml.ino) | Evolução atual do veículo em código. Integra leitura e política de inferência à mesma pinagem de motores. Gravação e execução física pendentes. |
+| `processControllers()` | Interpreta Y para frente, A para ré, X para esquerda e B para direita, conforme código e comentários. Comando base de magnitude 200. |
+| `moverEsquerdo()` / `moverDireito()` | Saturam o comando em ±255. O sinal define as entradas IN e o módulo define o duty do PWM a 5 kHz, 8 bits. |
+| `aplicarMotores()` | Zera ambos os comandos após mais de 400 ms sem dados válidos. O callback de desconexão zera os comandos base. |
+| `taskIA()` | Converte ADC 0–4095 para 0–1023 e executa a interface Edge Impulse. Uma saída `reduzir` com confiança mínima 0,70 aplica fator 0,60. Falha ou confiança baixa também mantém a redução. |
+| Compatibilidade LEDC | Usa o pino PWM para `ledcWrite` no core 3.x e o canal PWM no ramo anterior. |
 
-**Pasta adjacente auditada.** `C:\Teste\GlobalSolution` não tem histórico Git acessível. Contém 16 variantes de visão para uma bolinha e o peso `best.pt`. `mach1.py`, `mach2.py` e `mach6.py` carregam esse peso com Ultralytics YOLO, com inferência em região de interesse em `mach6.py`. As demais variantes exploram movimento com OpenCV, trajetória, Kalman, velocidade, altura ou gravação. Comentários registram dificuldade para detectar a bolinha em movimento e indicam que a tentativa de melhorar FPS em `mach14.py` foi preterida. A versão final não é identificável pelo nome. Não há comunicação ou fluxo de dados comprovado entre esses scripts e o carrinho, nem métricas ou registro de treinamento do peso.
+O ZIP é uma referência histórica para a evolução do controle. O fator 0,60, o limiar de confiança e os botões acima descrevem **esse sketch**, que usa TinyML para reduzir a velocidade. A confirmação da comunicação, dos eixos ou botões, do retorno à velocidade normal e do estado seguro no firmware final exige acesso ao código de entrega e ensaio físico. [Bluepad32 — controles compatíveis](https://bluepad32.readthedocs.io/en/latest/supported_gamepads/)
 
-## Estrutura de arquivos do repositório
+## Sistema de câmera com celular
+
+O nome correto é **Iriun Webcam**. A identificação se baseia no instalador local `IriunWebcam-2.9.9.exe` e no nome publicado pelo fornecedor. Isso identifica a ferramenta, mas a versão efetivamente instalada e o índice da câmera no ensaio não foram verificados.
+
+Conforme o relato, o celular é posicionado junto ao carrinho para enquadrar a frente. O aplicativo transmite os quadros ao cliente do computador pelo mecanismo de conexão usado na montagem. O cliente disponibiliza um dispositivo de vídeo. OpenCV abre esse dispositivo por índice com `VideoCapture`. Ultralytics processa os quadros no computador. [Iriun Webcam — aplicativo e cliente](https://iriun.com/)
+
+## Visão computacional e modelo YOLO
+
+A detecção de objetos associa caixas delimitadoras, rótulos e escores a regiões de um quadro. O OpenCV captura e exibe os quadros. Ultralytics carrega os pesos treinados, aplica o pré-processamento da biblioteca, executa a inferência e fornece os resultados. O peso carregado define quais classes podem ser previstas.
+
+| Artefato | Modelo e classes verificadas | Uso |
+|---|---|---|
+| [`GlobalSolution/best.pt`](GlobalSolution/best.pt) e cópia em `Teste.zip` | YOLOv8n, `0 — bolinha de papel`. A cópia tem o mesmo SHA-256. | Chamado por `mach1.py`, `mach2.py` e `mach6.py`. |
+| Outro `best.pt` em Downloads | Checkpoint YOLOv8n diferente, também com `0 — bolinha de papel`. | Sem vínculo comprovado com o script final. |
+| Detector generalista informado | Peso e arquitetura não localizados. | As 80 classes de COCO são plausíveis para um peso treinado nesse dataset, mas não foram confirmadas para a entrega. |
+
+Pessoas, cães, gatos, garrafas, copos, cadeiras, carros e bicicletas são exemplos de classes de [COCO](https://docs.ultralytics.com/datasets/detect/coco). Os checkpoints inspecionados não incluem essas classes nem classes específicas de cor, lixo ou embalagens de suco. Confirme o campo `names` do peso efetivamente carregado antes de descrever essas capacidades.
+
+No [mach2.py](GlobalSolution/mach2.py), `main()` carrega `best.pt`, abre o índice 0 e solicita 640 × 480 à câmera. Em cada iteração, `cap.read()` entrega um quadro. As linhas a seguir são do script:
+
+```python
+results = model(frame, conf=0.5, verbose=False)
+annotated_frame = results[0].plot()
+```
+
+O limiar de 0,50 pertence a esse script. Um escore alto indica que o detector favoreceu uma classe em determinada região, sem garantir que a detecção esteja correta. `plot()` sobrepõe caixas e rótulos ao quadro. O [mach1.py](GlobalSolution/mach1.py) abre o índice 1 e usa 0,60. O [mach6.py](GlobalSolution/mach6.py) seleciona regiões por movimento e desenha caixas com `box.xyxy`, `box.cls` e `box.conf`. `q` encerra os laços documentados. Se `cap.read()` falhar, `mach2.py` sai do laço, libera a captura e fecha as janelas. Não há reconexão automática nesse arquivo.
+
+## Bibliotecas e tecnologias
+
+| Biblioteca | Ambiente | Função no projeto | Arquivo de utilização | Versão |
+|---|---|---|---|---|
+| `Arduino.h` e Arduino-ESP32 | ESP32 | GPIO, ADC, serial e LEDC | Sketch LDR da GS e `carrinho_integrado.ino` histórico | Core 3.x previsto no sketch LDR. Versão final não identificada. |
+| Bluepad32 | ESP32 | Eventos e dados do gamepad Bluetooth | `carrinho_integrado.ino` do ZIP CarrinhoLuz | Não identificada |
+| `CarrinhoLuz_inferencing.h` | ESP32, histórico | Inferência embarcada para redução de velocidade | Chamado no sketch histórico do ZIP | Biblioteca exata não localizada |
+| `WiFi.h`, PicoMQTT, PubSubClient e ArduinoJson | ESP32, histórico | Rede, MQTT e mensagens JSON do joystick | [CP1](main.ino) e [firmware CP2-TinyML](CP2-TinyML/software/) | ArduinoJson 7.x indicado no CP2-TinyML. Revisões exatas não identificadas. |
+| OpenCV (`cv2`) | Python no computador | Captura, processamento e visualização dos quadros | [Scripts de visão](GlobalSolution/) | Não identificada |
+| Ultralytics | Python no computador | Carregamento do detector, inferência e resultados | `mach1.py`, `mach2.py`, `mach6.py` | `8.4.215` registrada nos checkpoints. Instalação local não verificada. |
+| NumPy | Python no computador | Operações de imagem e contornos | `mach6.py` e variantes de visão | Não identificada |
+| PyTorch | Runtime de visão | Formato do checkpoint e dependência da stack Ultralytics | `best.pt`, sem import direto nos scripts YOLO auditados | Não identificada |
+| pyserial | Python, aquisição anterior | Porta serial para coleta experimental | [Requisitos do experimento LDR](GS/inteligencia-artificial/requirements.txt) | `3.5` declarada |
+| ONNX Runtime | Python, simulação anterior | Modo B de proximidade | [Adaptador](CP2-TinyML/simulacao/inference.py) | Não identificada |
+
+Os códigos disponíveis usam APIs do ADC e LEDC para aquisição e PWM. Nenhuma biblioteca dedicada ao LDR ou à ponte H foi encontrada nos sketches pertinentes. O ambiente de gravação é Arduino IDE/Arduino-ESP32. O Arduino CLI está presente, mas a instalação inspecionada tem apenas o core AVR.
+
+## Estrutura de arquivos
 
 | Caminho | Conteúdo |
 |---|---|
-| [`main.ino`](main.ino), [`img/`](img/) e [diagrama](diagramaDeFuncionamento.png) | Firmware histórico e evidências visuais do CP1. |
-| [`CP2/`](CP2/) | Sketch de coleta, `capturar_serial.py`, `sensor.py`, CSV e roteiro histórico. |
-| [`CP2-TinyML/coleta/`](CP2-TinyML/coleta/) | Sketch, configuração, capturador, gerador sintético, preparador e requisitos. |
-| [`CP2-TinyML/dataset/`](CP2-TinyML/dataset/) | CSV, manifestos e janelas em treino, teste e preparado_simulado. `dados_reais/` contém marcador. |
-| [`CP2-TinyML/edge-impulse/`](CP2-TinyML/edge-impulse/) e [`modelo/`](CP2-TinyML/modelo/) | Plano de treinamento e área reservada à exportação. |
-| [`CP2-TinyML/software/`](CP2-TinyML/software/) | Sketches separados, configuração, integração e política. |
-| [`CP2-TinyML/simulacao/`](CP2-TinyML/simulacao/) | Cenários, CLI/GUI, inferência e ponte C++ com DLL e manifesto. |
-| [`CP2-TinyML/testes/`](CP2-TinyML/testes/) e [`evidencias/`](CP2-TinyML/evidencias/) | Testes, trilha, hashes, logs e roteiro físico. |
-| [`CP2-TinyML/commits.ps1`](CP2-TinyML/commits.ps1) | Script histórico de montagem dos commits, dispensável para instalação. |
+| [`CP/`](CP/) e [`main.ino`](main.ino) | Índice dos checkpoints e firmware CP1 preservado. |
+| [`CP2/`](CP2/) e [`CP2-TinyML/`](CP2-TinyML/) | Ultrassom, dados, controle MQTT, interface Edge Impulse e simulação de proximidade. |
+| [`GlobalSolution/`](GlobalSolution/) | Variantes de visão, checkpoint de bolinha de papel e experimentos OpenCV. |
+| [`GS/`](GS/) | Documentação da GS e artefatos preservados do experimento anterior de aquisição e classificação por LDR. |
+| ZIP CarrinhoLuz em Downloads | Referência externa com Bluepad32 e redução por TinyML. Não integra o Git atual. |
 
-## Pré-requisitos e instalação
+## Histórico de versionamento
 
-- **Simulação.** Usar Python 3.10 ou superior. Windows, Python 3.12.14 e a DLL versionada foram usados na auditoria. Em outras plataformas, gerar a biblioteca com `simulacao/build_policy.py --compiler CAMINHO_DO_COMPILADOR` em uma cópia de trabalho. Tkinter é necessário para a interface gráfica.
-- **Coleta.** Instalar `python -m pip install -r coleta/requirements.txt` em `CP2-TinyML` e ter uma porta serial disponível.
-- **Bancada.** Usar os dois ESP32 e conferir joystick, HC-SR04, adaptação de ECHO, pontes H, motores e alimentação. Instalar Arduino IDE, core Arduino-ESP32 3.x e bibliotecas da tabela. Selecionar placa e porta reais.
-- **TinyML.** Coletar sessões independentes, preparar treino/teste, treinar e validar no Edge Impulse. Importar o ZIP Arduino exportado e registrar versões, header, hash e métricas. Para o modo B também é necessário o ONNX e `modelo/desktop/model.json` compatíveis com o carregador.
+O repositório tem **13 commits alcançáveis**. O intervalo de `1947e28` a `08da745` contém 11 deles. `main`, `origin/main` e `origin/HEAD` apontavam localmente para `f6642e8`. Não foram identificadas tags. O ZIP e a revisão final informada não têm posição própria no histórico Git auditado.
 
-## Como compilar e executar
+| Versão | Funcionalidades | Alterações | Problemas | Soluções |
+|---|---|---|---|---|
+| CP1 · `1947e28`, `042e157`, `be1ffe4`, `b0f586e` | Tração 4WD e controle por joystick via Wi-Fi/MQTT | Código, fotos, diagrama e README histórico | Dois sketches em um arquivo com erros de sintaxe | Extração posterior do controle e separação dos programas |
+| CP2 · `905c317` | Coleta HC-SR04, serial e CSV | Pasta de coleta dedicada | GPIOs 22/23 eram exemplos. Ensaio físico não documentado. | Configuração externa e verificação de pinos na variante TinyML |
+| CP2-TinyML · `3cf3d7d`, `5767594`, `b1916fe`, `e5715b7`, `e18ec23`, `905c317`, `08da745` | Pipeline de proximidade, interface Edge Impulse, políticas e simulação | Janelas separadas, watchdog, controle e veículo em sketches distintos | Integração real e placa física sem prova | Simulação com regras, testes de dados e política nativa |
+| CP2 CarrinhoLuz · ZIP externo | Bluepad32, ADC analógico e redução via TinyML | Controle Bluetooth e dois canais de potência | Biblioteca exata e identificação física do sensor ausentes | Watchdog de 400 ms, compatibilidade de APIs PWM e redução em baixa confiança no sketch |
+| Global Solution visual · `0aa9ecd`, `f6642e8` | Documentação e experimentos de webcam | Entrada de 16 scripts e checkpoint YOLOv8n no Git | Detecta apenas a classe treinada. Comentários relatam fundo e movimento como fontes de erro. | Variantes com regiões de interesse e processamento OpenCV |
+| GS experimental · arquivos locais | LDR, serial e classificação por centroides no PC | Aquisição analógica separada | Dados sintéticos e sem atuação física validada | Suíte de software e registro de simulação preservados |
+| GS final · configuração informada | Carrinho controlado por Xbox, com adaptação automática à luminosidade por LDR e LED, complementado por sistema de detecção de objetos com câmera de celular e IA executada em Python | Automação local e visão no computador | Sketch de entrega, peso generalista e vídeo não localizados | Confirmar arquivos efetivamente gravados e executados em bancada |
 
-**Computador.** Executar a partir da raiz do repositório. Escolher nomes inéditos para as saídas. Para abrir a GUI, omitir `--headless` e usar Tkinter.
+## Problemas técnicos e correções
+
+- **Firmware de tração:** o CP1 original contém pares duplicados de `setup()/loop()` e erros de sintaxe. Os sketches do CP2-TinyML estão separados. No ZIP CarrinhoLuz, há tratamento de perda do controle e dois caminhos LEDC. Não foi feita compilação da configuração final.
+- **Pacotes Edge Impulse:** a exportação local `Carrinho-ESP32-TinyML-CP2_inferencing` contém três classes de proximidade e intervalo de 150 ms nos metadados. O sketch CarrinhoLuz pede `CarrinhoLuz_inferencing.h` e interpreta `reduzir`. São interfaces diferentes. Nenhuma delas comprova o LED e a regra final.
+- **Webcam:** os índices fixos 0 e 1 podem apontar para câmeras diferentes no Windows. Confirme visualmente o enquadramento antes de interpretar as detecções.
+- **Peso treinado:** o nome `best.pt` não identifica a arquitetura ou o conjunto de classes. Foram encontrados dois arquivos distintos com esse nome, ambos de uma classe. O metadado foi inspecionado sem executar a desserialização do checkpoint.
+- **PDF e roteiro anteriores:** descrevem o experimento de luminosidade com classificador por centroides. Permanecem como registros históricos, fora da documentação vigente da entrega.
+
+## Instalação e execução
+
+### A. Carrinho ESP32
+
+1. Localize o sketch realmente usado na montagem final. Confirme o modelo do ESP32, o GPIO do LDR, o GPIO/nível ativo do LED e a ligação da ponte H com o código e o circuito. Os valores do CP2 não devem ser aplicados automaticamente à GS.
+2. Com a potência dos motores desligada, conecte o ESP32 ao computador por USB. Abra o sketch final na Arduino IDE, selecione a placa e a porta e instale as dependências indicadas por seus `#include`. Se incluir Bluepad32, use a instalação e uma placa compatíveis com as [instruções oficiais](https://bluepad32.readthedocs.io/en/latest/getting_started/).
+3. Use **Verificar** e **Carregar**. Registre as versões e o resultado. Com rodas suspensas e fonte de potência acessível, coloque o controle em modo de pareamento e confirme a conexão pelo comportamento ou log previsto no sketch.
+4. Teste o comando de avanço e a parada. Varie a iluminação com o mesmo comando de avanço e registre leitura, LED, redução e retorno à luz normal. Teste a perda do controle em bancada e confirme a parada antes de colocar o carrinho no chão.
+5. Para testar somente a aquisição de LDR na placa clássica, há o [sketch experimental](GS/firmware/ldr_monitor/ldr_monitor.ino). Ele exige montagem correspondente e exibe os quadros a 115200 baud. Ele não aciona LED, motores ou controle Xbox.
+
+A reprodução completa da configuração final depende do arquivo de firmware correto. O ZIP CarrinhoLuz e o sketch experimental têm funções e pinagens diferentes.
+
+### B. Webcam do celular
+
+1. Instale o [Iriun Webcam](https://iriun.com/) no celular e o cliente correspondente no Windows.
+2. Abra os dois aplicativos e use o mecanismo de conexão indicado pelo fornecedor para os dispositivos em uso. Confirme na prévia do cliente que a imagem é do celular.
+3. Teste os índices OpenCV. No repositório, `mach2.py` usa 0 e `mach1.py` usa 1. Cubra momentaneamente a lente do celular para identificar visualmente a câmera em uso.
+
+### C. Python e YOLO
+
+O comando abaixo reproduz o **experimento disponível de bolinha de papel**. A execução com webcam não foi repetida nesta auditoria. A versão Ultralytics indicada replica o metadado do peso.
 
 ```powershell
-Set-Location CP2-TinyML
-python -m unittest discover -s testes -v
-python simulacao/simulador_carrinho.py --headless --mode A --cenario LIVRE --saida livre_local.json
-python coleta/preparar_dataset.py --entrada dataset/dados_simulados_cp2.csv --fonte simulado --saida dataset/nova_preparacao
+Set-Location 'C:\Teste\cpCarrinho\GlobalSolution'
+python -m venv .venv
+& .\.venv\Scripts\python.exe -m pip install 'ultralytics==8.4.215' opencv-python numpy
+& .\.venv\Scripts\python.exe mach2.py
+# Se a câmera correta estiver no índice 1, feche com q e execute:
+& .\.venv\Scripts\python.exe mach1.py
 ```
 
-A trilha contém tempo, distância, classe, motivo, comandos, PWM por motor e posição simulada. No modo A, confiança aparece como `null` e não há probabilidades de modelo.
+A pasta de trabalho é necessária porque os scripts carregam `best.pt` por caminho relativo. A janela mostra caixas e rótulos quando há detecção. Feche com `q`. Para a configuração de múltiplas classes, obtenha o script e o peso efetivamente usados na entrega e confirme as classes antes de executar. O comando acima não substitui a configuração generalista.
 
-**Arduino IDE — procedimento de bancada ainda não validado nesta auditoria.**
+## Testes e validação
 
-1. Para coletar, copiar o sketch de `CP2-TinyML/coleta/` para uma pasta de sketch `coleta_hcsr04`. Copiar o exemplo de configuração como `config_coleta.h` ao lado do sketch e definir TRIG, ECHO e confirmação após conferir a montagem. Usar **Verificar** e **Carregar** para gravar na placa do veículo com as rodas paradas.
-2. Fechar o Monitor Serial. Em `CP2-TinyML`, capturar com o comando abaixo, substituindo `COM5`. Repetir em arquivos separados para `ATENCAO` e `PERIGO`, documentando cenários. Preparar sessões completas com a opção `--fonte real --treino ... --teste ...` do preparador.
-3. Após importar a biblioteca Arduino real, copiar `config_local.example.h` para `config_local.h` junto ao firmware do veículo. Definir `CP2_PIN_TRIG`, `CP2_PIN_ECHO`, `CP2_PINS_CONFIRMED`, `CP2_EI_HEADER` e `CP2_FORWARD_SIGN` de acordo com montagem, exportação e sentido físico. Manter `CP2_ALLOW_REVERSE=0` inicialmente.
-4. Abrir `carrinho_tinyml.ino` e `controle_cp2.ino` separadamente. Selecionar cada placa e porta, verificar e gravar. Registrar placa, versões e saídas de compilação e gravação.
-5. Com rodas suspensas, verificar partida parada, neutralidade do joystick, direção, Wi-Fi/MQTT e logs a 115200 baud. Exercitar perda de conexão e sensor inválido. Medir latência e distância de parada a baixa velocidade em ambiente controlado antes da apresentação.
-
-```powershell
-python coleta/sensor.py --porta COM5 --classe LIVRE --segundos 30 --cenario objeto_plano_sessao1 --saida dataset/dados_reais/livre_sessao1.csv
-```
-
-[Integração](CP2-TinyML/software/carrinho_tinyml/INTEGRACAO.md) · [Roteiro físico](CP2-TinyML/testes/roteiro_fisico.md)
-
-
-## Testes e Validação
-
-| Teste | Objetivo | Resultado observado | Evidência |
+| Cenário | Resultado esperado | Resultado observado | Status |
 |---|---|---|---|
-| Dataset sintético | Validar formato, limites, rótulos, lacunas e separação | 14 testes Python passaram, em concordância com o log histórico. Os CSVs brutos têm SHA-256 idêntico. | [Testes](CP2-TinyML/testes/test_dataset.py) · [Log](CP2-TinyML/evidencias/testes_python.txt) |
-| Partida e condição livre | Aguardar janela e liberar avanço por regra | Na trilha versionada, a primeira classe LIVRE surge em 1.500 ms e o PWM simulado dos quatro motores passa a 200. Aos 6 s, o contador registra zero colisões simuladas. | [Trilha](CP2-TinyML/evidencias/simulacao/livre_A.json) |
-| Obstáculos e transições | Exercitar LIVRE, ATENCAO e PERIGO | Os cenários isolados retornaram 200, 100 e 0 por lado para demanda 200. A aproximação percorreu as três classes em modo A. | [Suíte de simulação](CP2-TinyML/testes/test_simulacao.py) |
-| Falhas, JSON e atuadores | Verificar mensagem inválida, desconexão, timeout, sensor inválido, baixa confiança, ré e mistura | 26 testes de simulação/ponte nativa passaram. A baixa confiança foi injetada. JSON e motores foram simulados. | [Casos de teste](CP2-TinyML/testes/test_simulacao.py) · [Política](CP2-TinyML/software/carrinho_tinyml/policy.h) |
-| Teste C++ independente | Executar asserções de `policy.h` fora do simulador | A tentativa com MSVC chegou à vinculação e encontrou `LNK1104` para `kernel32.lib`. Resultado desse executável não comprovado. A política foi exercitada via DLL na suíte Python. | [Teste C++](CP2-TinyML/testes/test_policy.cpp) |
-| Modelo real em computador e ESP32 | Verificar classes, probabilidades e inferência | Não comprovado. A suíte registrou 40 testes executados e uma classe de testes ignorada por ausência de ONNX Runtime. O modelo também está ausente do repositório. | [Testes do modo B](CP2-TinyML/testes/test_simulacao.py) · [Área do modelo](CP2-TinyML/modelo/README.md) |
-| Sensor físico, MQTT, motores e parada | Demonstrar o conjunto e medir distância de parada | Não comprovado no CP2. Fotos e relato histórico registram o CP1. O roteiro físico ainda depende de execução documentada. | [Fotos](img/) · [Roteiro](CP2-TinyML/testes/roteiro_fisico.md) · [Status](CP2-TinyML/evidencias/STATUS.md) |
+| Controle Xbox conectado | Entrada de controle reconhecida pelo ESP32 | Callbacks Bluepad32 localizados no pacote histórico. Sem log da entrega final. | Pendente de comprovação |
+| Carrinho movimentando e parando | Direção correta e retorno ao estado seguro | PWM e inversão por sinal identificados no CP2, sem teste da revisão final. | Pendente de comprovação |
+| Ambiente iluminado | LED no estado normal e comando sem limitação por baixa luz | Ausência de registro físico da GS na condição. | Pendente de comprovação |
+| Pouca luz | Leitura muda e cruza o critério do firmware final | Código de leitura encontrado no experimento. Limiar e ensaio final ausentes. | Pendente de comprovação |
+| LED e redução em pouca luz | LED acende e PWM diminui mantido o mesmo comando | Nenhum trecho com essa lógica conjunta foi localizado. | Pendente de comprovação |
+| Recuperação da iluminação | LED e velocidade voltam ao estado definido | Sem código ou evidência da transição no firmware final. | Pendente de comprovação |
+| Celular conectado como webcam | Prévia mostra a câmera do celular | Instalador Iriun identificado. Sem evidência da sessão. | Pendente de comprovação |
+| Python recebendo quadros | Janela mostra o fluxo da câmera selecionada | `VideoCapture` e `cap.read()` confirmados em fonte, sem reexecução. | Implementação localizada |
+| YOLO detecta pessoa e outros objetos | Peso generalista produz caixas e rótulos correspondentes | Checkpoints disponíveis só contêm `bolinha de papel`. | Pendente de peso e teste |
+| YOLO detecta bolinha de papel | Exibe classe e caixa quando detectada | Código e classe confirmados. Comentários relatam melhora em fundo escuro, falsos positivos e falhas em movimento. | Relato histórico, sem revalidação |
+| Desconexão da câmera | Encerrar captura sem manter imagem parada | `mach2.py` sai do laço ao receber leitura inválida. Não foi testado com desconexão real. | Implementação localizada |
+| Falha de comunicação do controle | Tração para em tempo seguro | O CP2 CarrinhoLuz tem watchdog de 400 ms. Comportamento do firmware final sem comprovação. | Pendente de comprovação |
 
-Também foram reexecutados o simulador em modo A e o preparador de dados, com saída temporária. A CLI reproduziu o cenário LIVRE em 6 s com PWM 200 por motor e zero colisões simuladas, e o preparador gerou 36 janelas de treino e seis de teste. A suíte Python emitiu um `ResourceWarning` sobre um CSV aberto pelo simulador e terminou com sucesso. Compilação e upload no ESP32 não foram validados. A instalação Arduino inspecionada não continha o pacote ESP32.
+Os dez testes e os 6/6 do classificador sintético por centroides, assim como os 40 testes históricos do CP2-TinyML, pertencem a outros fluxos. Eles não validam a demonstração Xbox/LDR/LED nem o reconhecimento de pessoas pelo YOLO.
 
-## Limitações conhecidas
+## Resultados e discussão
 
-- O ultrassom amostra a região frontal. Superfície, ângulo, temperatura e vibração podem afetar a medição.
-- A janela nominal de 1,5 s, o timeout de até 30 ms da leitura e a inferência síncrona podem retardar a reação. A distância de parada precisa ser medida fisicamente.
-- O dataset tem uma sequência sintética contínua por classe. A separação temporal reduz compartilhamento direto de amostras, mas não demonstra generalização para transições ou cenários independentes.
-- O operador fornece a trajetória. A autonomia prevista é supervisória e atua na redução ou no bloqueio do movimento. O código não planeja rotas nem executa desvios automáticos.
-- As credenciais Wi-Fi estão fixas no código e não há autenticação MQTT configurada no broker.
+A evidência verificável estabelece três pontos: o histórico de um carrinho programado para receber comandos Bluetooth, a aquisição de luminosidade no sketch experimental e uma implementação de detecção de classe única no computador. A configuração final reúne as três responsabilidades, com a luz influenciando a atuação local e a câmera oferecendo reconhecimento visual ao operador. O comportamento simultâneo precisa de comprovação. Uma mesma cena de pouca luz pode reduzir a qualidade dos quadros, então a atuação do LED e a qualidade da detecção devem ser registradas separadamente.
 
-## Melhorias futuras
+## Limitações técnicas
 
-1. Conferir a montagem, a alimentação, os níveis elétricos e a evolução física do sensor.
-2. Coletar sessões independentes e transições, validar o classificador e conservar exportação, versões e métricas.
-3. Gravar os sketches nas placas identificadas e medir latência, falsos alarmes e distância de parada em testes controlados.
-4. Registrar funcionamento, acabamento, segurança e resposta a falhas no vídeo acadêmico.
+- GPIOs, limiar, nível ativo do LED e fator PWM da entrega final ainda não são recuperáveis dos arquivos auditados.
+- O ADC do LDR é sensível ao divisor e à montagem. Sem calibração, a leitura é relativa.
+- A captura depende do cliente Iriun e da seleção correta da câmera. Latência e estabilidade não foram medidas.
+- O peso generalista não está disponível. Nenhuma detecção visual é usada para alterar a tração nos scripts encontrados.
+- O relatório anterior de luminosidade por centroides não comprova a arquitetura atual.
 
-## Vídeo demonstrativo
+## Possíveis melhorias
 
-**Pendente.** Os arquivos auditados não contêm vídeo ou link demonstrativo do ROTA LIVRE. O enunciado pede até seis minutos. O registro deve apresentar a identificação acadêmica, a montagem e o funcionamento físico, incluindo o sensor, as respostas contextuais e o comportamento diante de falhas. [Roteiro físico](CP2-TinyML/testes/roteiro_fisico.md)
+- Versionar o sketch efetivamente gravado, o script de visão definitivo e a referência exata ao peso e à lista de classes.
+- Medir ADC e PWM em diferentes condições repetidas, verificando recuperação à luz, desconexão do controle e perda de quadros.
+- Registrar a latência da webcam e medir falsos positivos e falsos negativos em fundos, distâncias e iluminações diferentes.
+- Avaliar o posicionamento da câmera e o campo útil de passagem em cenário representativo.
 
-## Conclusão técnica
+## Conclusão
 
-O histórico comprova a evolução do controle diferencial para uma arquitetura que prevê ultrassom, classificação local e política de atuação. Testes de dados e de simulação demonstram o comportamento da política sob entradas sintéticas. Para demonstrar a integração embarcada, ainda é preciso confirmar a montagem, validar o modelo real e testar as duas placas e os motores em conjunto.
+O ROTA LIVRE explora a relação entre percepção ambiental, controle robótico e visão computacional. Na configuração apresentada, a luminosidade orienta uma automação local de sinalização e velocidade, enquanto a IA visual interpreta o vídeo em um computador. A auditoria confirma os antecedentes dessa evolução e um checkpoint YOLOv8n de classe única. Para avaliar a integração vigente, a próxima evidência precisa mostrar a montagem, a leitura, a resposta física sob o mesmo comando de movimento e as detecções do peso realmente usado.
 
 ## Referências
 
-- [Repositório cpCarrinho](https://github.com/victoriafpizza/cpCarrinho)
-- [Documentação CP2-TinyML](CP2-TinyML/README.md)
-- [Espressif — API LEDC do Arduino-ESP32](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/ledc.html)
-- [Edge Impulse — importação de dados CSV](https://www.edgeimpulse.com/blog/import-your-data-as-csv/)
-- [Edge Impulse — SDK C++ e rotina de classificação](https://github.com/edgeimpulse/inferencing-sdk-cpp/blob/master/classifier/ei_run_classifier.h)
+- FIAP. *Desafio FIAP GS CitizenTech 4ES*, Global Solution 2026.2, páginas 55 a 59.
+- [Iriun Webcam — fornecedor](https://iriun.com/)
+- [Bluepad32 — documentação e compatibilidade](https://bluepad32.readthedocs.io/en/latest/)
+- [Espressif — ADC](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/adc.html) e [LEDC](https://docs.espressif.com/projects/arduino-esp32/en/latest/api/ledc.html)
+- [Ultralytics — YOLOv8](https://docs.ultralytics.com/models/yolov8), [detecção](https://docs.ultralytics.com/tasks/detect) e [COCO](https://docs.ultralytics.com/datasets/detect/coco)
 
-### Conformidade com os critérios da FIAP
+## Vídeo demonstrativo
 
-A matriz segue o enunciado fornecido. A consulta pública não localizou uma rubrica oficial específica da disciplina para confirmação independente.
+**Link da versão final pendente.** O arquivo local `linkyoutube.txt` está vazio. O ZIP histórico inclui um vídeo de CP2, que não foi usado para comprovar a versão atual. Na entrega de até seis minutos, mostre a aluna, o controle conectado, o mesmo comando de avanço sob duas condições de luz, o LED, a redução e o retorno observados. Registre o celular na montagem e a janela Python mostrando as classes do peso efetivamente usado. Vincule o vídeo final aqui.
 
-| Requisito FIAP | Status | Evidência encontrada | Pendência |
+## Matriz de conformidade com a FIAP
+
+As páginas 55–57 tratam da evolução do robô e do uso de sensor adicional, a página 58 define entregáveis e a página 59 lista critérios de avaliação. Os status abaixo se referem à configuração final.
+
+| Requisito | Evidência | Status | Pendência |
 |---|---|---|---|
-| Evolução do robô anterior | Comprovado | Código original, commits e módulos CP2. | Demonstrar a revisão atual em bancada. |
-| Incorporação de pelo menos um sensor adicional | Parcialmente comprovado | HC-SR04 incorporado ao código em relação ao CP1. O relato do CP1 já menciona ultrassom após o MVP. | Verificar se houve adição física de um sensor além dos usados no CP1 e confirmar GPIOs. |
-| Integração de dados sensoriais à IA | Parcialmente comprovado | Coleta, janela e chamada `run_classifier`. | Treinar, exportar e executar o modelo real com o sensor. |
-| Respostas contextualizadas | Parcialmente comprovado | Redução, parada e recuperação verificadas em simulação. | Demonstrar respostas no veículo. |
-| Autonomia e tomada de decisão | Parcialmente comprovado | Decisão supervisória testada por regras. | Verificar em bancada com inferência embarcada. |
-| Integração entre hardware e software | Parcialmente comprovado | Montagem histórica, GPIOs e código dos dois ESP32. | Testar ligação atual, MQTT, atuação e sensor juntos. |
-| Adequação ao tema CitizenTech | Comprovado | Escopo acadêmico liga percepção de obstáculos à mobilidade acessível. | Avaliar em cenários representativos de circulação. |
-| Testes práticos | Não comprovado | Roteiro físico e relato histórico, com execução de dados e simulação. | Registrar ensaios físicos atuais e resultados. |
-| Acabamento e segurança | Parcialmente comprovado | Fotos históricas, carenagem relatada e regras de parada. | Inspecionar montagem atual, alimentação, adaptação do ECHO e parada física. |
-| Repositório com código-fonte e documentação | Comprovado | Git com firmware, dados, simulação, testes e documentação. | Anexar artefatos após treinamento e exportação. |
-| Instruções de reprodução | Parcialmente comprovado | Suíte de computador reexecutada e instruções de bancada descritas. | Validar compilação, upload e reprodução física ponta a ponta. |
-| Identificação dos integrantes | Comprovado | Victoria Franceschini Pizza, RM 550609, no enunciado e na documentação CP2. | — |
-| Vídeo demonstrativo de até seis minutos | Não comprovado | Nenhum vídeo ou link localizado. | Gravar e vincular o vídeo de até seis minutos. |
+| Evolução do robô anterior | Histórico CP1, CP2, CP2-TinyML e visão, além do pacote CarrinhoLuz | Parcialmente comprovado | Versionar o firmware definitivo e demonstrar a nova montagem |
+| Sensor adicional | LDR relatado. CP1 não traz implementação explícita de LDR. CarrinhoLuz já tinha sensor analógico de tipo não confirmado. | Parcialmente comprovado | Identificar o sensor real da revisão anterior. Se já era LDR, documentar evolução funcional e comprovar sensor adicional distinto, se aplicável. |
+| Funcionalidade do sensor | Sketch de aquisição LDR e automação relatada | Parcialmente comprovado | Demonstrar leitura, LED, redução e recuperação |
+| Implementação e integração da IA | Scripts YOLO com metadado de classe única | Parcialmente comprovado | Confirmar peso final e demonstrar visão com entrada da câmera. O pipeline auditado não combina LDR com a IA. |
+| Autonomia contextualizada | Atenuação por IA no CP2 e regra de luminosidade informada para a GS | Parcialmente comprovado | Demonstrar adaptação sob o mesmo comando e reação a falhas |
+| Integração hardware/software | Código de tração histórico, captura e aquisição disponíveis | Parcialmente comprovado | Testar os dois fluxos no protótipo atual |
+| Adequação CitizenTech | Aplicação proposta para iluminação e observação de percursos | Comprovado na proposta | Medir benefício em cenário representativo |
+| Acabamento e segurança | Fotos históricas | Não comprovado | Registrar montagem atual, fixação e parada segura |
+| Testes práticos | Relatos históricos e código de teste | Não comprovado | Registrar evidências físicas da GS final |
+| Criatividade e inovação | Combinação de automação luminosa e visão local | Parcialmente comprovado | Demonstrar a configuração em operação |
+| Documentação e reprodução GitHub | Histórico publicado e revisão local do README | Parcialmente comprovado | Publicar esta documentação com os arquivos definitivos e validar reprodução |
+| Vídeo de até seis minutos | Link final ainda ausente | Não comprovado | Gravar ou localizar a demonstração final e incluir o link |
+| Nome e RM | Victoria Franceschini Pizza · RM 550609 | Comprovado | Confirmar identificação na submissão |
